@@ -17,6 +17,8 @@ func (cli *Command) printMenu() {
 	fmt.Println("View all blocks: print")
 	fmt.Println("Send coins from one to another address: send -from [fromAddress] -to [toAddress] -amount [amount]")
 	fmt.Println("Get balance of an address: getBalance -address [address]")
+	fmt.Println("List all addresses: listAddresses")
+	fmt.Println("Create wallets: createwallet")
 }
 
 func (cli *Command) validateArgs() {
@@ -72,13 +74,31 @@ func (cli *Command) send(from, to string, amount int) {
 	fmt.Printf("%s sent %d to %s\n", from, amount, to)
 }
 
+func (cli *Command) listAddresses() {
+	wallets, _ := CreateWallets()
+	addresses := wallets.GetAllAddresses()
+
+	for _, address := range addresses {
+		fmt.Println(address)
+	}
+}
+
+func (cli *Command) createWallets() {
+	wallets, _ := CreateWallets()
+	address := wallets.AddWallets()
+
+	wallets.SaveFile()
+	fmt.Printf("Your address is: %s\n", address)
+}
+
 func (cli *Command) run() {
 	cli.validateArgs()
 	getBalanceCmd := flag.NewFlagSet("getBalance", flag.ExitOnError)
 	initChainCmd := flag.NewFlagSet("initChain", flag.ExitOnError)
 	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
 	printCmd := flag.NewFlagSet("print", flag.ExitOnError)
-
+	createWalletCmd := flag.NewFlagSet("createwallet", flag.ExitOnError)
+	listAddressesCmd := flag.NewFlagSet("listAddresses", flag.ExitOnError)
 	getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
 	createBlockchainAddress := initChainCmd.String("address", "", "The address to send genesis block reward to")
 	fromAddress := sendCmd.String("from", "", "Source wallet address")
@@ -106,6 +126,16 @@ func (cli *Command) run() {
 		if err != nil {
 			log.Panic(err)
 		}
+	case "createwallet":
+		err := createWalletCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+	case "listAddresses":
+		err := listAddressesCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	default:
 		cli.printMenu()
 		runtime.Goexit()
@@ -129,6 +159,14 @@ func (cli *Command) run() {
 
 	if printCmd.Parsed() {
 		cli.print()
+	}
+
+	if createWalletCmd.Parsed() {
+		cli.createWallets()
+	}
+
+	if listAddressesCmd.Parsed() {
+		cli.listAddresses()
 	}
 
 	if sendCmd.Parsed() {
