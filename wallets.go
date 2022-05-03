@@ -78,3 +78,6 @@ func (ws *Wallets) AddWallets() string {
 
 	return address
 }
+func (ws Wallets) GetWallet(address string) Wallet {
+	return *ws.Wallets[address]
+}
