@@ -2,19 +2,32 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"log"
 )
 
 type Block struct {
 	Hash         []byte
-	Data         []byte
+	Transactions []*Transaction
 	PreviousHash []byte
 	Nonce        int
 }
 
-func CreateBlock(data string, PreviousHash []byte) *Block {
-	block := &Block{[]byte{}, []byte(data), PreviousHash, 0}
+func (block *Block) HashTransactions() []byte {
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range block.Transactions {
+		txHashes = append(txHashes, tx.Id)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
+}
+
+func CreateBlock(Transactions []*Transaction, PreviousHash []byte) *Block {
+	block := &Block{[]byte{}, Transactions, PreviousHash, 0}
 	pow := StartProofOfWork(block)
 	nonce, hash := pow.Start()
 	block.Hash = hash[:]

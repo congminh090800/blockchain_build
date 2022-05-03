@@ -9,14 +9,14 @@ import (
 	"strconv"
 )
 
-type Command struct {
-	blockchain *BlockChain
-}
+type Command struct{}
 
 func (cli *Command) printMenu() {
 	fmt.Println("Commands:")
-	fmt.Println("Append block: add -block [block_data]")
+	fmt.Println("Create blockchain: initChain -address [address]")
 	fmt.Println("View all blocks: print")
+	fmt.Println("Send coins from one to another address: send -from [fromAddress] -to [toAddress] -amount [amount]")
+	fmt.Println("Get balance of an address: getBalance -address [address]")
 }
 
 func (cli *Command) validateArgs() {
@@ -27,18 +27,14 @@ func (cli *Command) validateArgs() {
 
 }
 
-func (cli *Command) addBlock(data string) {
-	cli.blockchain.AddBlock(data)
-	fmt.Println("Block added")
-}
-
 func (cli *Command) print() {
-	iter := cli.blockchain.Iterator()
+	chain := LoadBlockchain("")
+	defer chain.Database.Close()
+	iter := chain.Iterator()
 	for {
 		block := iter.Next()
 		fmt.Printf("-----------------------------------\n")
 		fmt.Printf("Hash: %x\n", block.Hash)
-		fmt.Printf("Data: %s\n", block.Data)
 		pow := StartProofOfWork(block)
 		fmt.Printf("Confirmed: %s\n", strconv.FormatBool(pow.Validate()))
 		if len(block.PreviousHash) == 0 {
@@ -47,40 +43,100 @@ func (cli *Command) print() {
 	}
 }
 
+func (cli *Command) createBlockChain(address string) {
+	chain := InitMyChain(address)
+	chain.Database.Close()
+	fmt.Println("Finished!")
+}
+
+func (cli *Command) getBalance(address string) {
+	chain := LoadBlockchain(address)
+	defer chain.Database.Close()
+
+	balance := 0
+	UTXOs := chain.FindUTXOs(address)
+
+	for _, out := range UTXOs {
+		balance += out.Amount
+	}
+
+	fmt.Printf("Balance of %s: %d\n", address, balance)
+}
+
+func (cli *Command) send(from, to string, amount int) {
+	chain := LoadBlockchain(from)
+	defer chain.Database.Close()
+
+	tx := CreateTx(from, to, amount, chain)
+	chain.AddBlock([]*Transaction{tx})
+	fmt.Printf("%s sent %d to %s\n", from, amount, to)
+}
+
 func (cli *Command) run() {
 	cli.validateArgs()
+	getBalanceCmd := flag.NewFlagSet("getBalance", flag.ExitOnError)
+	initChainCmd := flag.NewFlagSet("initChain", flag.ExitOnError)
+	sendCmd := flag.NewFlagSet("send", flag.ExitOnError)
+	printCmd := flag.NewFlagSet("print", flag.ExitOnError)
 
-	addBlockCmd := flag.NewFlagSet("add", flag.ExitOnError)
-	printChainCmd := flag.NewFlagSet("print", flag.ExitOnError)
-	addBlockData := addBlockCmd.String("block", "", "Block data")
+	getBalanceAddress := getBalanceCmd.String("address", "", "The address to get balance for")
+	createBlockchainAddress := initChainCmd.String("address", "", "The address to send genesis block reward to")
+	fromAddress := sendCmd.String("from", "", "Source wallet address")
+	toAddress := sendCmd.String("to", "", "Destination wallet address")
+	amount := sendCmd.Int("amount", 0, "Amount to send")
 
 	switch os.Args[1] {
-	case "add":
-		err := addBlockCmd.Parse(os.Args[2:])
+	case "getBalance":
+		err := getBalanceCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
 		}
-
+	case "initChain":
+		err := initChainCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	case "print":
-		err := printChainCmd.Parse(os.Args[2:])
+		err := printCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
 		}
-
+	case "send":
+		err := sendCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
 	default:
 		cli.printMenu()
 		runtime.Goexit()
 	}
 
-	if addBlockCmd.Parsed() {
-		if *addBlockData == "" {
-			addBlockCmd.Usage()
+	if getBalanceCmd.Parsed() {
+		if *getBalanceAddress == "" {
+			getBalanceCmd.Usage()
 			runtime.Goexit()
 		}
-		cli.addBlock(*addBlockData)
+		cli.getBalance(*getBalanceAddress)
 	}
 
-	if printChainCmd.Parsed() {
+	if initChainCmd.Parsed() {
+		if *createBlockchainAddress == "" {
+			initChainCmd.Usage()
+			runtime.Goexit()
+		}
+		cli.createBlockChain(*createBlockchainAddress)
+	}
+
+	if printCmd.Parsed() {
 		cli.print()
+	}
+
+	if sendCmd.Parsed() {
+		if *fromAddress == "" || *toAddress == "" || *amount <= 0 {
+			sendCmd.Usage()
+			runtime.Goexit()
+		}
+
+		cli.send(*fromAddress, *toAddress, *amount)
 	}
 }

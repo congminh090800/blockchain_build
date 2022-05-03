@@ -18,7 +18,7 @@ type ProofOfWork struct {
 }
 
 func (pow *ProofOfWork) InitData(nonce int) []byte {
-	return bytes.Join([][]byte{pow.Block.PreviousHash, pow.Block.Data, ToHex(int64(nonce)), ToHex(int64(Difficulty))}, []byte{})
+	return bytes.Join([][]byte{pow.Block.PreviousHash, pow.Block.HashTransactions(), ToHex(int64(nonce)), ToHex(int64(Difficulty))}, []byte{})
 }
 
 // this proof of work is from algorithm is from: https://www.youtube.com/watch?v=aE4eDTUAE70&list=PLpP5MQvVi4PGmNYGEsShrlvuE2B33xV1L&index=2
