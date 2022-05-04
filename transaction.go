@@ -25,6 +25,10 @@ type TxOutput struct {
 	PublicKey []byte
 }
 
+type TxOutputs struct {
+	Outputs []TxOutput
+}
+
 type TxInput struct {
 	Id        []byte
 	OutIndex  int
@@ -204,19 +208,24 @@ func (tx Transaction) String() string {
 // coinbase tx is tx that has no sender, usually the first tx of genesis block or reward tx
 func CreateCoinbaseTx(to, data string) *Transaction {
 	if data == "" {
-		data = fmt.Sprintf("Send reward to %s", to)
+		randData := make([]byte, 20)
+		_, err := rand.Read(randData)
+		if err != nil {
+			log.Panic(err)
+		}
+		data = fmt.Sprintf("%x", randData)
 	}
 
 	txIn := TxInput{[]byte{}, -1, nil, []byte(data)}
 	txOut := NewTxOut(100, to)
 
 	tx := Transaction{nil, []TxInput{txIn}, []TxOutput{*txOut}}
-	tx.GenerateID()
+	tx.Id = tx.Hash()
 
 	return &tx
 }
 
-func CreateTx(from, to string, amount int, blockChain *BlockChain) *Transaction {
+func CreateTx(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 
@@ -228,7 +237,7 @@ func CreateTx(from, to string, amount int, blockChain *BlockChain) *Transaction 
 	w := wallets.GetWallet(from)
 	pubKey := PublicKeyHash(w.PublicKey)
 
-	acc, validOutputs := blockChain.FindSpendableOutputs(pubKey, amount)
+	acc, validOutputs := UTXO.FindSpendableOutputs(pubKey, amount)
 
 	if acc < amount {
 		log.Panic("Error: not enough funds")
@@ -254,6 +263,30 @@ func CreateTx(from, to string, amount int, blockChain *BlockChain) *Transaction 
 	tx := Transaction{nil, inputs, outputs}
 	tx.Id = tx.Hash()
 
-	blockChain.SignTransaction(&tx, w.PrivateKey)
+	UTXO.Blockchain.SignTransaction(&tx, w.PrivateKey)
 	return &tx
+}
+
+func (outs TxOutputs) Serialize() []byte {
+	var buffer bytes.Buffer
+
+	encode := gob.NewEncoder(&buffer)
+	err := encode.Encode(outs)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return buffer.Bytes()
+}
+
+func DeserializeOutputs(data []byte) TxOutputs {
+	var outputs TxOutputs
+
+	decode := gob.NewDecoder(bytes.NewReader(data))
+	err := decode.Decode(&outputs)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return outputs
 }

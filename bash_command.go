@@ -19,6 +19,7 @@ func (cli *Command) printMenu() {
 	fmt.Println("Get balance of an address: getBalance -address [address]")
 	fmt.Println("List all addresses: listAddresses")
 	fmt.Println("Create wallets: createwallet")
+	fmt.Println("Rebuild UTXO set: reindexutxo")
 }
 
 func (cli *Command) validateArgs() {
@@ -53,6 +54,10 @@ func (cli *Command) print() {
 func (cli *Command) createBlockChain(address string) {
 	chain := InitMyChain(address)
 	chain.Database.Close()
+
+	UTXOSet := UTXOSet{chain}
+	UTXOSet.Reindex()
+
 	fmt.Println("Finished!")
 }
 
@@ -63,13 +68,14 @@ func (cli *Command) getBalance(address string) {
 	}
 
 	chain := LoadBlockchain(address)
+	UTXOSet := UTXOSet{chain}
 	defer chain.Database.Close()
 
 	balance := 0
 
 	pubKey := Base58Decode([]byte(address))
 	pubKey = pubKey[1 : len(pubKey)-4]
-	UTXOs := chain.FindUTXOs(pubKey)
+	UTXOs := UTXOSet.FindUTXO(pubKey)
 
 	for _, out := range UTXOs {
 		balance += out.Amount
@@ -89,10 +95,12 @@ func (cli *Command) send(from, to string, amount int) {
 	}
 
 	chain := LoadBlockchain(from)
+	UTXOSet := UTXOSet{chain}
 	defer chain.Database.Close()
 
-	tx := CreateTx(from, to, amount, chain)
-	chain.AddBlock([]*Transaction{tx})
+	tx := CreateTx(from, to, amount, &UTXOSet)
+	block := chain.AddBlock([]*Transaction{tx})
+	UTXOSet.Update(block)
 	fmt.Printf("%s sent %d to %s\n", from, amount, to)
 }
 
@@ -126,6 +134,7 @@ func (cli *Command) run() {
 	fromAddress := sendCmd.String("from", "", "Source wallet address")
 	toAddress := sendCmd.String("to", "", "Destination wallet address")
 	amount := sendCmd.Int("amount", 0, "Amount to send")
+	reindexUTXOCmd := flag.NewFlagSet("reindexutxo", flag.ExitOnError)
 
 	switch os.Args[1] {
 	case "getBalance":
@@ -155,6 +164,11 @@ func (cli *Command) run() {
 		}
 	case "listAddresses":
 		err := listAddressesCmd.Parse(os.Args[2:])
+		if err != nil {
+			log.Panic(err)
+		}
+	case "reindexutxo":
+		err := reindexUTXOCmd.Parse(os.Args[2:])
 		if err != nil {
 			log.Panic(err)
 		}
@@ -199,4 +213,17 @@ func (cli *Command) run() {
 
 		cli.send(*fromAddress, *toAddress, *amount)
 	}
+	if reindexUTXOCmd.Parsed() {
+		cli.reindexUTXO()
+	}
+}
+
+func (cli *Command) reindexUTXO() {
+	chain := LoadBlockchain("")
+	defer chain.Database.Close()
+	UTXOSet := UTXOSet{chain}
+	UTXOSet.Reindex()
+
+	count := UTXOSet.CountTransactions()
+	fmt.Printf("Done! There are %d transactions in the UTXO set.\n", count)
 }
