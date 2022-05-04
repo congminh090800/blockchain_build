@@ -16,8 +16,9 @@ type Wallets struct {
 	Wallets map[string]*Wallet
 }
 
-func (ws *Wallets) SaveFile() {
+func (ws *Wallets) SaveFile(nodeId string) {
 	var content bytes.Buffer
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 	gob.Register(elliptic.P256())
 	encoder := gob.NewEncoder(&content)
 	err := encoder.Encode(ws)
@@ -33,7 +34,8 @@ func (ws *Wallets) SaveFile() {
 
 }
 
-func (ws *Wallets) LoadFile() error {
+func (ws *Wallets) LoadFile(nodeId string) error {
+	walletFile := fmt.Sprintf(walletFile, nodeId)
 	if _, err := os.Stat(walletFile); os.IsNotExist(err) {
 		return err
 	}
@@ -54,11 +56,11 @@ func (ws *Wallets) LoadFile() error {
 	return nil
 }
 
-func CreateWallets() (*Wallets, error) {
+func CreateWallets(nodeId string) (*Wallets, error) {
 	wallets := Wallets{}
 	wallets.Wallets = make(map[string]*Wallet)
 
-	err := wallets.LoadFile()
+	err := wallets.LoadFile(nodeId)
 	return &wallets, err
 }
 

@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"encoding/gob"
 	"log"
+	"time"
 )
 
 type Block struct {
+	Timestamp    int64
 	Hash         []byte
 	Transactions []*Transaction
 	PreviousHash []byte
 	Nonce        int
+	Height       int
 }
 
 func (block *Block) HashTransactions() []byte {
@@ -24,13 +27,17 @@ func (block *Block) HashTransactions() []byte {
 	return tree.RootNode.Data
 }
 
-func CreateBlock(Transactions []*Transaction, PreviousHash []byte) *Block {
-	block := &Block{[]byte{}, Transactions, PreviousHash, 0}
+func CreateBlock(txs []*Transaction, prevHash []byte, height int) *Block {
+	block := &Block{time.Now().Unix(), []byte{}, txs, prevHash, 0, height}
 	pow := StartProofOfWork(block)
 	nonce, hash := pow.Start()
 	block.Hash = hash[:]
 	block.Nonce = nonce
 	return block
+}
+
+func Genesis(coinbase *Transaction) *Block {
+	return CreateBlock([]*Transaction{coinbase}, []byte{}, 0)
 }
 
 // Serialize and deserialize data to save and load to database

@@ -118,15 +118,16 @@ func (tx Transaction) Sign(privKey ecdsa.PrivateKey, prevTXs map[string]Transact
 		prevTXs := prevTXs[hex.EncodeToString(in.Id)]
 		txCopy.TxInputs[inId].Signature = nil
 		txCopy.TxInputs[inId].PublicKey = prevTXs.TxOutputs[in.OutIndex].PublicKey
-		txCopy.Id = txCopy.Hash()
-		txCopy.TxInputs[inId].PublicKey = nil
 
-		r, s, err := ecdsa.Sign(rand.Reader, &privKey, txCopy.Id)
+		dataToSign := fmt.Sprintf("%x\n", txCopy)
+
+		r, s, err := ecdsa.Sign(rand.Reader, &privKey, []byte(dataToSign))
 		if err != nil {
 			log.Panic(err)
 		}
 		signature := append(r.Bytes(), s.Bytes()...)
 		tx.TxInputs[inId].Signature = signature
+		txCopy.TxInputs[inId].PublicKey = nil
 	}
 }
 
@@ -163,8 +164,7 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		prevTXs := prevTXs[hex.EncodeToString(in.Id)]
 		txCopy.TxInputs[inId].Signature = nil
 		txCopy.TxInputs[inId].PublicKey = prevTXs.TxOutputs[in.OutIndex].PublicKey
-		txCopy.Id = txCopy.Hash()
-		txCopy.TxInputs[inId].PublicKey = nil
+
 		r := big.Int{}
 		s := big.Int{}
 		x := big.Int{}
@@ -174,11 +174,13 @@ func (tx *Transaction) Verify(prevTXs map[string]Transaction) bool {
 		s.SetBytes(in.Signature[(keyLen / 2):])
 		x.SetBytes(in.PublicKey[:(keyLen / 2)])
 		y.SetBytes(in.PublicKey[(keyLen / 2):])
-		rawPubKey := ecdsa.PublicKey{curve, &x, &y}
-		if ecdsa.Verify(&rawPubKey, txCopy.Id, &r, &s) == false {
+
+		dataToVerify := fmt.Sprintf("%x\n", txCopy)
+		rawPubKey := ecdsa.PublicKey{Curve: curve, X: &x, Y: &y}
+		if ecdsa.Verify(&rawPubKey, []byte(dataToVerify), &r, &s) == false {
 			return false
 		}
-
+		txCopy.TxInputs[inId].PublicKey = nil
 	}
 
 	return true
@@ -225,16 +227,10 @@ func CreateCoinbaseTx(to, data string) *Transaction {
 	return &tx
 }
 
-func CreateTx(from, to string, amount int, UTXO *UTXOSet) *Transaction {
+func CreateTx(w *Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 	var inputs []TxInput
 	var outputs []TxOutput
 
-	wallets, errW := CreateWallets()
-	if errW != nil {
-		log.Panic(errW)
-	}
-
-	w := wallets.GetWallet(from)
 	pubKey := PublicKeyHash(w.PublicKey)
 
 	acc, validOutputs := UTXO.FindSpendableOutputs(pubKey, amount)
@@ -253,6 +249,8 @@ func CreateTx(from, to string, amount int, UTXO *UTXOSet) *Transaction {
 			inputs = append(inputs, TxInput{txId, out, nil, pubKey})
 		}
 	}
+
+	from := fmt.Sprintf("%s", w.Address())
 
 	outputs = append(outputs, *NewTxOut(amount, to))
 
@@ -289,4 +287,15 @@ func DeserializeOutputs(data []byte) TxOutputs {
 	}
 
 	return outputs
+}
+
+func DeserializeTransaction(data []byte) Transaction {
+	var transaction Transaction
+
+	decoder := gob.NewDecoder(bytes.NewReader(data))
+	err := decoder.Decode(&transaction)
+	if err != nil {
+		log.Panic(err)
+	}
+	return transaction
 }
