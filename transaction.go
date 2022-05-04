@@ -208,7 +208,7 @@ func (tx Transaction) String() string {
 // coinbase tx is tx that has no sender, usually the first tx of genesis block or reward tx
 func CreateCoinbaseTx(to, data string) *Transaction {
 	if data == "" {
-		randData := make([]byte, 20)
+		randData := make([]byte, 24)
 		_, err := rand.Read(randData)
 		if err != nil {
 			log.Panic(err)
@@ -217,7 +217,7 @@ func CreateCoinbaseTx(to, data string) *Transaction {
 	}
 
 	txIn := TxInput{[]byte{}, -1, nil, []byte(data)}
-	txOut := NewTxOut(100, to)
+	txOut := NewTxOut(20, to)
 
 	tx := Transaction{nil, []TxInput{txIn}, []TxOutput{*txOut}}
 	tx.Id = tx.Hash()

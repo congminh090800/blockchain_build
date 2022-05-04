@@ -53,7 +53,7 @@ func (cli *Command) print() {
 
 func (cli *Command) createBlockChain(address string) {
 	chain := InitMyChain(address)
-	chain.Database.Close()
+	defer chain.Database.Close()
 
 	UTXOSet := UTXOSet{chain}
 	UTXOSet.Reindex()
@@ -99,7 +99,8 @@ func (cli *Command) send(from, to string, amount int) {
 	defer chain.Database.Close()
 
 	tx := CreateTx(from, to, amount, &UTXOSet)
-	block := chain.AddBlock([]*Transaction{tx})
+	cbTx := CreateCoinbaseTx(from, "")
+	block := chain.AddBlock([]*Transaction{cbTx, tx})
 	UTXOSet.Update(block)
 	fmt.Printf("%s sent %d to %s\n", from, amount, to)
 }
