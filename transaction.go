@@ -246,7 +246,7 @@ func CreateTx(w *Wallet, to string, amount int, UTXO *UTXOSet) *Transaction {
 		}
 
 		for _, out := range outs {
-			inputs = append(inputs, TxInput{txId, out, nil, pubKey})
+			inputs = append(inputs, TxInput{txId, out, nil, w.PublicKey})
 		}
 	}
 

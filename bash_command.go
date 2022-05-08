@@ -12,6 +12,8 @@ import (
 type Command struct{}
 
 func (cli *Command) printMenu() {
+	nodeId := os.Getenv("NODE_ID")
+	fmt.Println("NODE_ID: ", nodeId)
 	fmt.Println("Commands:")
 	fmt.Println("Create blockchain: initChain -address [address]")
 	fmt.Println("View all blocks: print")
