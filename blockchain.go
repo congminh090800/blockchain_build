@@ -15,8 +15,7 @@ import (
 	"github.com/dgraph-io/badger"
 )
 
-const dbPath = "./db/blocks"
-const dbManifest = "./db/blocks/MANIFEST"
+const dbPath = "./db/blocks_%s"
 const genesisData = "First Transaction from Genesis"
 
 type BlockChain struct {
@@ -56,7 +55,7 @@ func InitBlockChain(address, nodeId string) *BlockChain {
 		if err != nil {
 			log.Panic(err)
 		}
-		err = txn.Set([]byte("lh"), genesis.Hash)
+		err = txn.Set([]byte("latestHash"), genesis.Hash)
 
 		lastHash = genesis.Hash
 
@@ -120,7 +119,7 @@ func (chain *BlockChain) AddBlock(block *Block) {
 			log.Panic(err)
 		}
 
-		item, err := txn.Get([]byte("lh"))
+		item, err := txn.Get([]byte("latestHash"))
 		if err != nil {
 			log.Panic(err)
 		}
@@ -135,7 +134,7 @@ func (chain *BlockChain) AddBlock(block *Block) {
 		lastBlock := Deserialize(lastBlockData)
 
 		if block.Height > lastBlock.Height {
-			err = txn.Set([]byte("lh"), block.Hash)
+			err = txn.Set([]byte("latestHash"), block.Hash)
 			if err != nil {
 				log.Panic(err)
 			}
@@ -153,7 +152,7 @@ func (chain *BlockChain) GetBestHeight() int {
 	var lastBlock Block
 
 	err := chain.Database.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte("lh"))
+		item, err := txn.Get([]byte("latestHash"))
 		if err != nil {
 			log.Panic(err)
 		}
@@ -225,7 +224,7 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
 	}
 
 	err := chain.Database.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte("lh"))
+		item, err := txn.Get([]byte("latestHash"))
 		if err != nil {
 			log.Panic(err)
 		}
@@ -254,7 +253,7 @@ func (chain *BlockChain) MineBlock(transactions []*Transaction) *Block {
 		if err != nil {
 			log.Panic(err)
 		}
-		err = txn.Set([]byte("lh"), newBlock.Hash)
+		err = txn.Set([]byte("latestHash"), newBlock.Hash)
 
 		chain.LatestHash = newBlock.Hash
 
