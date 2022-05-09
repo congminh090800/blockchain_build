@@ -1,0 +1,23 @@
+.df {
+    display: flex
+}
+
+.jcc {
+    justify-content: center;
+}
+
+.aic {
+    align-items: center;
+}
+
+.sb {
+    font-weight: 700 !important;
+}
+
+.jcsb {
+    justify-content: space-between;
+}
+
+.fdc {
+    flex-direction: column;
+}
