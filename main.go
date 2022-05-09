@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +14,7 @@ type DataSend struct {
 	From   string `json:"from"`
 	To     string `json:"to"`
 	Amount string `json:"amount"`
+	Mine   bool   `json:"mine"`
 }
 
 func main() {
@@ -27,8 +29,8 @@ func main() {
 	u := UTXOSet{chain}
 	u.Reindex()
 	chain.Database.Close()
-
 	r := gin.Default()
+	r.Use(cors.Default())
 	r.POST("/createwallet", func(c *gin.Context) {
 		nodeId := os.Getenv("NODE_ID")
 		wallets, _ := CreateWallets(nodeId)
@@ -66,10 +68,16 @@ func main() {
 		wallet := wallets.GetWallet(data.From)
 		amount, _ := strconv.ParseInt(data.Amount, 10, 64)
 		tx := CreateTx(&wallet, data.To, int(amount), &UTXOSet)
-		cbTx := CreateCoinbaseTx(data.From, "")
-		txs := []*Transaction{cbTx, tx}
-		block := chain.MineBlock(txs)
-		UTXOSet.Update(block)
+		if data.Mine {
+			cbTx := CreateCoinbaseTx(data.From, "")
+			txs := []*Transaction{cbTx, tx}
+			block := chain.MineBlock(txs)
+			UTXOSet.Update(block)
+		} else {
+			txs := []*Transaction{tx}
+			block := chain.MineBlock(txs)
+			UTXOSet.Update(block)
+		}
 	})
 	r.GET("/listaddresses", func(c *gin.Context) {
 		nodeId := os.Getenv("NODE_ID")
