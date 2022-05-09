@@ -1,4 +1,12 @@
-import { Box, Button, Container, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Container,
+  Snackbar,
+  TextField,
+  Typography,
+} from "@mui/material";
 import React, { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "@mui/icons-material";
@@ -10,16 +18,20 @@ const Wallet = () => {
   const navigate = useNavigate();
   const [value, setValue] = useState("");
   const [sendA, setSendA] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
 
   React.useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
         const res = await axios.get("http://localhost:8080/getbalance", {
           params: {
             address,
           },
         });
         setData(res.data);
+        setLoading(false);
       } catch (error) {
         navigate("/");
       }
@@ -34,6 +46,24 @@ const Wallet = () => {
         height: "100vh",
       }}
     >
+      <Snackbar
+        open={open}
+        autoHideDuration={4000}
+        onClose={() => {
+          setOpen(false);
+        }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => {
+            setOpen(false);
+          }}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Send Successfully!!!!
+        </Alert>
+      </Snackbar>
       <Box className="df">
         <Button
           startIcon={<ArrowLeft />}
@@ -61,7 +91,7 @@ const Wallet = () => {
           }}
           className="sb"
         >
-          Balance : {data.balance}
+          Balance : {loading ? "Loading...." : data.balance}
         </Typography>
         <Box className="df fdc" sx={{ p: 3 }}>
           <Typography>Send crypto to</Typography>
@@ -97,14 +127,12 @@ const Wallet = () => {
                     to: sendA,
                     amount: value,
                   });
-                  console.log(
-                    "🚀 ~ file: Wallet.js ~ line 99 ~ onClick={ ~ res",
-                    res
-                  );
+
                   setData((prev) => ({
                     ...prev,
                     balance: prev.balance - value,
                   }));
+                  setOpen(true);
                 } catch (e) {}
               }}
             >

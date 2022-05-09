@@ -41,7 +41,7 @@ const Addresses = () => {
               const res = await axios.post(
                 "http://localhost:8080/createwallet"
               );
-
+              setList((list) => [...list, res.data.data]);
               setAddressC(res.data.data);
               setOpenC(true);
             }}
@@ -62,7 +62,19 @@ const Addresses = () => {
         return (
           <Box
             key={index}
-            sx={{ p: 2, m: 2, borderRadius: 2, border: "1px solid #e8e8e8" }}
+            sx={{
+              p: 2,
+              m: 2,
+              borderRadius: 2,
+              border: "1px solid #e8e8e8",
+              cursor: "pointer",
+              transition: "0.25s ease all",
+
+              "&:hover": {
+                background: "#1e88e5",
+                color: "#fff",
+              },
+            }}
             onClick={() => {
               navigate(`/${item}`);
             }}

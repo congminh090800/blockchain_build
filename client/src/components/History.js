@@ -33,13 +33,17 @@ const History = () => {
           GO BACK
         </Button>
       </Box>
-      <Box className="df">
+      <Typography variant="h6" className="sb" sx={{ p: 2 }}>
+        Block history
+      </Typography>
+      <Box className="df fdc">
         {data.map((item, index) => {
           return (
             <Box
               key={index}
               sx={{
                 p: 2,
+                m: "16px 0px",
                 borderRadius: 2,
                 border: "1px solid #e8e8e8",
               }}
